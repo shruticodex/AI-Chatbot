@@ -6,8 +6,8 @@ A RAG-based AI chatbot built with **Python**, **LangGraph**, **Pinecone**, and *
 
 ```
 ┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌──────────────┐
-│  PDF eBook  │────▶│  Chunk Text  │────▶│  Embeddings │────▶│   Pinecone   │
-│  (PyPDF)    │     │  (1000 tok)  │     │  (OpenAI)   │     │  Vector DB   │
+│  PDF eBook  │────▶│  Chunk Text  │────▶│ Embeddings │────▶│   Pinecone  │
+│  (PyPDF)    │     │  (1000 tok)  │     │(HuggingFace)│     │  Vector DB   │
 └─────────────┘     └──────────────┘     └─────────────┘     └──────┬───────┘
                                                                     │
 User Question ──────────────────────────────────────────────────────┤
@@ -22,8 +22,8 @@ User Question ──────────────────────
                     ▼                                              ▼                          ▼
             ┌───────────────┐                              ┌──────────────┐          ┌──────────────┐
             │  1. Retrieve  │                              │ 2. Generate  │          │ 3. Grounding │
-            │  Top-K chunks │─────────────────────────────▶│  LLM Answer  │─────────▶│    Check     │
-            │  from Pinecone│                              │  (GPT-4o-mini)│         │              │
+            │  Top-K chunks │─────────────────────────────▶│  LLM Answer │─────────▶│    Check     │
+            │  from Pinecone│                              │  (NVIDIA NIM)│          │              │
             └───────────────┘                              └──────────────┘          └──────────────┘
                                                                    │
                                                                    ▼
@@ -66,7 +66,7 @@ RAG Chatbot/
 │   ├── run_api.py         # Start FastAPI server
 │   └── sample_queries.py  # Run 6 sample queries
 ├── requirements.txt
-├── .env.example
+├── .env
 └── README.md
 ```
 
@@ -75,7 +75,7 @@ RAG Chatbot/
 ### 1. Prerequisites
 
 - Python 3.10+
-- [OpenAI API key](https://platform.openai.com/api-keys)
+- [NVIDIA API key](build.nvidia.com) (free tier)
 - [Pinecone API key](https://app.pinecone.io/) (free tier works)
 
 ### 2. Install Dependencies
@@ -103,7 +103,7 @@ copy .env.example .env   # Windows
 Edit `.env` with your keys:
 
 ```env
-OPENAI_API_KEY=sk-your-key
+NVIDIA_API_KEY=nvapi-your-key
 PINECONE_API_KEY=your-pinecone-key
 PINECONE_INDEX_NAME=agentic-ai-ebook
 ```
@@ -116,7 +116,7 @@ Download the eBook from [https://konverge.ai/pdf/Ebook-Agentic-AI.pdf](https://k
 python -m src.ingest "C:\path\to\Ebook-Agentic-AI.pdf"
 ```
 
-This creates a Pinecone index (if needed), chunks the PDF, generates embeddings, and upserts vectors.
+This chunks the PDF, generates local CPU embeddings to avoid rate limits, and upserts vectors into Pinecone
 
 ### 5. Run the Chatbot
 
@@ -152,17 +152,24 @@ Response:
 
 ```json
 {
-  "answer": "Agentic AI refers to...",
+  "answer": "Agentic AI is defined as systems that can **autonomously decide and act** to achieve specific objectives, moving beyond simple reactive responses to proactive problem‑solving (see page 18).",
   "context_chunks": [
     {
-      "text": "...",
+      "text": "Agentic AI\nAn Executive's Guide to In-depth\nUnderstanding of Agentic AI",
       "page": 3,
-      "score": 0.8521,
+      "score": 0.8169,
       "source": "Ebook-Agentic-AI.pdf",
-      "chunk_index": 12
+      "chunk_index": 1
+    },
+    {
+      "text": "... [4 additional chunks omitted for brevity] ...",
+      "page": 18,
+      "score": 0.7094,
+      "source": "Ebook-Agentic-AI.pdf",
+      "chunk_index": 25
     }
   ],
-  "confidence_score": 0.8234,
+  "confidence_score": 0.794,
   "grounded": true
 }
 ```
@@ -198,8 +205,8 @@ python scripts/sample_queries.py
 |-----------|------------|
 | Orchestration | LangGraph |
 | Vector DB | Pinecone |
-| Embeddings | OpenAI `text-embedding-3-small` |
-| LLM | OpenAI `gpt-4o-mini` |
+| Embeddings | HuggingFace `all-MiniLM-L6-v2` local CPU execution |
+| LLM | NVIDIA NIM `openai/gpt-oss-20b` |
 | PDF Parsing | PyPDF |
 | API | FastAPI + Uvicorn |
 | UI | Streamlit |
